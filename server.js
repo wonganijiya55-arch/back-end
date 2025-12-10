@@ -5,9 +5,7 @@ const cors = require('cors');
 const app = express();
 const loginRoute = require("./routes/login");
 const passwordResetOTPRoutes = require("./routes/passwordResetOTP");
-
-// Initialize database tables
-require('./models/init');
+const { init } = require('./models/init');
 
 // middleware
 app.use(cors()); // enable CORS for all routes (helps when using Live Server)
@@ -25,6 +23,11 @@ app.use('/api/payments', require('./routes/payments'));
 
 //start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+init().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize database tables', err);
+  process.exit(1);
 });

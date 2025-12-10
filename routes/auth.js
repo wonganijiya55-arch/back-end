@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -9,12 +9,16 @@ require('dotenv').config();
 router.post('/register', async (req, res) => {
     const { name, email, password, year } = req.body;
     try {
-        // TODO: Implement real persistence (SQLite adaptation). Placeholder response only.
         const hashedPassword = await hashPassword(password);
-        const fakeId = Date.now();
-        const token = jwt.sign({ id: fakeId }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
-        return res.status(201).json({ token, id: fakeId, note: 'Stub implementation – replace with DB logic' });
+        const insert = `INSERT INTO students (name, email, password, year, registration_date) VALUES ($1, $2, $3, $4, NOW()) RETURNING id`;
+        const { rows } = await pool.query(insert, [name, email, hashedPassword, year]);
+        const token = jwt.sign({ id: rows[0].id }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
+        return res.status(201).json({ token, id: rows[0].id });
     } catch (error) {
+        const msg = String(error.message).toLowerCase();
+        if (String(error.code) === '23505' || msg.includes('students_email_key')) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
         console.error(error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }

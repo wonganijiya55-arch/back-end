@@ -1,12 +1,28 @@
 const express = require('express');
 const router = express.Router();
-// Placeholder payments router until DB layer adapted
-router.get('/', (req, res) => {
-  return res.json({ payments: [], note: 'Stub payments list – implement DB access' });
+const { pool } = require('../config/database');
+
+router.get('/', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT p.*, s.name as student_name, s.email as student_email
+      FROM payments p
+      LEFT JOIN students s ON p.student_id = s.id
+      ORDER BY p.date DESC
+    `);
+    return res.json({ payments: rows });
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error', error: err.message });
+  }
 });
 
-router.get('/summary', (req, res) => {
-  return res.json({ total: 0, count: 0, note: 'Stub payments summary – implement DB aggregation' });
+router.get('/summary', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS count FROM payments`);
+    return res.json(rows[0]);
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error', error: err.message });
+  }
 });
 
 router.get('/health', (req, res) => res.json({ ok: true }));

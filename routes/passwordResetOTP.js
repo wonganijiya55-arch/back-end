@@ -2,7 +2,7 @@ const express = require("express");
 const { sendEmail } = require("../utils/sendEmail.js");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const db = require("../config/database");
+const { pool } = require("../config/database");
 
 const router = express.Router();
 
@@ -23,46 +23,22 @@ router.post("/request-otp", async (req, res) => {
   }
 
   try {
-    // Check if user exists in students table
-    db.get("SELECT * FROM students WHERE email = ?", [email], async (err, student) => {
-      if (err) {
-        console.error("Database error:", err);
-        return res.status(500).json({ message: "Database error" });
+    const sRes = await pool.query("SELECT * FROM students WHERE email = $1", [email]);
+    let userType = null;
+    if (sRes.rows[0]) {
+      userType = "student";
+    } else {
+      const aRes = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
+      if (aRes.rows[0]) {
+        userType = "admin";
       }
+    }
 
-      let userExists = false;
-      let userType = null;
+    if (!userType) {
+      return res.json({ message: "If the email is registered, an OTP has been sent to your email address" });
+    }
 
-      if (student) {
-        userExists = true;
-        userType = "student";
-      } else {
-        // Check admin table
-        db.get("SELECT * FROM admins WHERE email = ?", [email], async (err2, admin) => {
-          if (err2) {
-            console.error("Database error:", err2);
-            return res.status(500).json({ message: "Database error" });
-          }
-
-          if (admin) {
-            userExists = true;
-            userType = "admin";
-          }
-
-          if (!userExists) {
-            // Security: Don't reveal if email exists or not
-            return res.json({ 
-              message: "If the email is registered, an OTP has been sent to your email address" 
-            });
-          }
-
-          await sendOTP(email, userType, res);
-        });
-        return;
-      }
-
-      await sendOTP(email, userType, res);
-    });
+    await sendOTP(email, userType, res);
   } catch (error) {
     console.error("Error in request-otp:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -220,28 +196,18 @@ router.post("/reset-password", async (req, res) => {
 
     // Update password in appropriate table
     const tableName = otpData.userType === "student" ? "students" : "admins";
-    
-    db.run(
-      `UPDATE ${tableName} SET password = ? WHERE email = ?`,
-      [hashedPassword, targetEmail],
-      function(err) {
-        if (err) {
-          console.error("Database error:", err);
-          return res.status(500).json({ message: "Failed to update password" });
-        }
+    try {
+      const result = await pool.query(`UPDATE ${tableName} SET password = $1 WHERE email = $2`, [hashedPassword, targetEmail]);
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-        if (this.changes === 0) {
-          return res.status(404).json({ message: "User not found" });
-        }
+      otpStore.delete(targetEmail);
 
-        // Delete used OTP
-        otpStore.delete(targetEmail);
-
-        // Send confirmation email
-        sendEmail(
-          targetEmail,
-          "Password Reset Successful - ICES",
-          `Hello,
+      sendEmail(
+        targetEmail,
+        "Password Reset Successful - ICES",
+        `Hello,
 
 Your password has been successfully reset.
 
@@ -249,13 +215,13 @@ If you did not perform this action, please contact support immediately.
 
 Best regards,
 ICES Support Team`
-        ).catch(err => console.error("Failed to send confirmation email:", err));
+      ).catch(err => console.error("Failed to send confirmation email:", err));
 
-        res.json({ 
-          message: "Password successfully reset. You can now login with your new password."
-        });
-      }
-    );
+      res.json({ message: "Password successfully reset. You can now login with your new password." });
+    } catch (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ message: "Failed to update password" });
+    }
   } catch (error) {
     console.error("Error in reset-password:", error);
     res.status(500).json({ message: "Internal server error" });

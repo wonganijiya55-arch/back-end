@@ -1,23 +1,52 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-// Resolve db path relative to backend root, not two levels up
-const dbPath = path.resolve(__dirname, '..', process.env.DB_path || './db/db.sqlite3');
-
-// Ensure db directory exists
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-  console.log('Created database directory:', dbDir);
-}
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database:', err);
-  } else {
-    console.log('Connected to database:', dbPath);
-  }
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({
+  connectionString,
+  ssl: { rejectUnauthorized: false },
 });
 
-module.exports = db;
+async function initTables() {
+  const queries = [
+    `CREATE TABLE IF NOT EXISTS students (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      year TEXT,
+      registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS admins (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS events (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      event_date DATE NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS payments (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES students(id),
+      purpose TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      method TEXT NOT NULL,
+      date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS event_registrations (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES students(id),
+      event_name TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+
+  for (const q of queries) {
+    await pool.query(q);
+  }
+}
+
+module.exports = { pool, initTables };
