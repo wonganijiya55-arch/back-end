@@ -1,11 +1,13 @@
+// Basic auth endpoints (e.g., student registration with JWT)
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool } = require('../config/database'); // pg Pool for inserts and queries
 const { hashPassword, comparePassword } = require('../utils/hash');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 //student registration//
+// Register a student and return a JWT
 router.post('/register', async (req, res) => {
     const { name, email, password, year } = req.body;
     try {

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool } = require('../config/database'); // pg Pool for admin ops
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 
 // GET /api/admins - List all admins
+// List admins
 router.get('/', async (req, res) => {
     try {
         const query = `SELECT id, username, email FROM admins`;
@@ -16,6 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/admins/register - Register a new admin
+// Register a new admin
 router.post('/register', 
     // Validation middleware
     body('username').notEmpty().withMessage('Username is required'),
@@ -58,6 +60,7 @@ router.post('/register',
 );
 
 // POST /api/admins/login - Admin login
+// Admin login
 router.post('/login',
     body('email').isEmail().withMessage('Valid email is required'),
     body('password').notEmpty().withMessage('Password is required'),
@@ -86,6 +89,7 @@ router.post('/login',
 );
 
 // GET /api/admins/students - Get all registered students (admin access)
+// List all students (admin view)
 router.get('/students', async (req, res) => {
     try {
         const query = `SELECT id, name, email, year, registration_date FROM students ORDER BY registration_date DESC`;
@@ -97,6 +101,7 @@ router.get('/students', async (req, res) => {
 });
 
 // GET /api/admins/students/:id - Get specific student details (admin access)
+// Get a student by id
 router.get('/students/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -111,6 +116,7 @@ router.get('/students/:id', async (req, res) => {
 });
 
 // GET /api/admins/events - Get all events (admin access)
+// List events (admin view)
 router.get('/events', async (req, res) => {
     try {
         const query = `SELECT id, title, description, event_date AS date FROM events ORDER BY event_date DESC`;
@@ -122,12 +128,13 @@ router.get('/events', async (req, res) => {
 });
 
 // GET /api/admins/registrations - Get all event registrations (admin access)
+// List all event registrations
 router.get('/registrations', async (req, res) => {
     const query = `
         SELECT er.*, s.name as student_name, s.email as student_email 
         FROM event_registrations er
         JOIN students s ON er.student_id = s.id
-        ORDER BY er.registration_date DESC
+        ORDER BY er.created_at DESC
     `;
     try {
         const { rows } = await pool.query(query);
@@ -138,6 +145,7 @@ router.get('/registrations', async (req, res) => {
 });
 
 // GET /api/admins/payments - Get all payments (admin access)
+// List all payments
 router.get('/payments', async (req, res) => {
     const query = `
         SELECT p.*, s.name as student_name, s.email as student_email 
@@ -154,6 +162,7 @@ router.get('/payments', async (req, res) => {
 });
 
 // GET /api/admins/payments/:id - Get specific payment details (admin access)
+// Get a payment by id
 router.get('/payments/:id', async (req, res) => {
     const { id } = req.params;
     const query = `

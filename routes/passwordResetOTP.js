@@ -1,15 +1,17 @@
+// OTP-based password reset flows (request, verify, reset)
 const express = require("express");
-const { sendEmail } = require("../utils/sendEmail.js");
+const { sendEmail } = require("../utils/sendEmail.js"); // email delivery helper
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { pool } = require("../config/database");
+const { pool } = require("../config/database"); // pg Pool for user lookups and updates
 
 const router = express.Router();
 
-// In-memory store for OTPs (for production, use Redis or database table)
+// In-memory OTP store; use Redis/DB in production for durability
 const otpStore = new Map(); // Format: { email: { otp, expiry, attempts, resetToken } }
 
 // Generate 6-digit OTP
+// Generate a simple 6-digit OTP
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool } = require('../config/database'); // pg Pool for queries
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 
 // GET /api/students - List all students
+// List all students (basic fields)
 router.get('/', async (req, res) => {
     try {
         const query = `SELECT id, name, email, year, registration_date FROM students`;
@@ -16,6 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/students/register - Register a new student
+// Register a new student
 router.post('/register', 
     // Validation middleware
     body('name').notEmpty().withMessage('Name is required'),
@@ -45,6 +47,7 @@ router.post('/register',
 );
 
 // POST /api/students/login - Student login
+// Student login
 router.post('/login',
     body('email').isEmail().withMessage('Valid email is required'),
     body('password').notEmpty().withMessage('Password is required'),

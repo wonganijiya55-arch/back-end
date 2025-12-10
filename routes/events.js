@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool } = require('../config/database'); // pg Pool for queries
 const { body, validationResult } = require('express-validator');
 
+// List all events
 router.get('/', async (req, res) => {
     try {
         const query = `SELECT id, title, description, event_date AS date FROM events`;
@@ -13,6 +14,7 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Create an event
 router.post('/',
     body('title').notEmpty().withMessage('Event title is required'),
     body('description').optional(),
@@ -33,6 +35,7 @@ router.post('/',
     }
 );
 
+// Register a student to an event
 router.post('/register',
     body('studentId').isInt().withMessage('Valid student ID is required'),
     body('eventName').notEmpty().withMessage('Event name is required'),
@@ -56,6 +59,7 @@ router.post('/register',
     }
 );
 
+// List registrations for a student
 router.get('/registrations/:studentId', async (req, res) => {
     const { studentId } = req.params;
     try {
@@ -67,6 +71,7 @@ router.get('/registrations/:studentId', async (req, res) => {
     }
 });
 
+// List upcoming events
 router.get('/upcoming', async (req, res) => {
     try {
         const query = `SELECT id, title, description, event_date AS date FROM events WHERE event_date >= CURRENT_DATE ORDER BY event_date ASC`;

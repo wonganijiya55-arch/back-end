@@ -1,5 +1,7 @@
+// Email sending utility using Nodemailer (Gmail by default)
 const nodemailer = require("nodemailer");
 
+// Send a plaintext email; credentials come from env
 const sendEmail = async (to, subject, text) => {
   try {
     const transporter = nodemailer.createTransport({

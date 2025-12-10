@@ -1,10 +1,11 @@
-// routes/login.js
+// routes/login.js — Student/Admin login via PostgreSQL
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const { pool } = require("../config/database");
+const { pool } = require("../config/database"); // shared pg Pool
 
 // POST /api/login - generic login for student or admin
+// POST /api/login — authenticate student/admin by email+password
 router.post("/", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {

@@ -1,4 +1,4 @@
-// Load environment variables BEFORE any DB imports
+// Load env vars BEFORE any DB imports (critical for DB URL)
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -24,10 +24,11 @@ app.use('/api/payments', require('./routes/payments'));
 
 //start server
 const PORT = process.env.PORT || 5000;
-// Debug print of DATABASE_URL variables on startup (do not log secrets in production logs)
+// Debug presence of DB URLs on startup (avoid printing secrets)
 console.log('DATABASE_URL (fallback):', process.env.DATABASE_URL ? '[set]' : '[missing]');
 console.log('DATABASE_URL_INTERNAL:', process.env.DATABASE_URL_INTERNAL ? '[set]' : '[missing]');
 console.log('DATABASE_URL_EXTERNAL:', process.env.DATABASE_URL_EXTERNAL ? '[set]' : '[missing]');
+// Ensure DB is ready before accepting requests
 init().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

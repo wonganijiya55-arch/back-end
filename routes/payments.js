@@ -1,7 +1,9 @@
+// Payments listing and summary endpoints
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool } = require('../config/database'); // pg Pool for queries
 
+// List payments with student info
 router.get('/', async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -16,6 +18,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Payments aggregation summary
 router.get('/summary', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS count FROM payments`);

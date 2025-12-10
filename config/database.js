@@ -1,8 +1,10 @@
+// PostgreSQL connection via pg Pool with Render-friendly SSL
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Prefer internal URL on Render; use external locally
 const isRender = !!process.env.RENDER; // Render sets RENDER=true in its environment
 let connectionString;
 if (isRender && process.env.DATABASE_URL_INTERNAL) {
@@ -14,6 +16,7 @@ if (isRender && process.env.DATABASE_URL_INTERNAL) {
 }
 
 if (!connectionString) {
+  // Fail fast when DB URL is missing
   throw new Error('DATABASE_URL is not set. Please configure DATABASE_URL_INTERNAL or DATABASE_URL_EXTERNAL or DATABASE_URL in your environment (.env locally, Render env in production).');
 }
 
@@ -22,6 +25,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Lightweight connectivity check run at startup
 async function testConnection() {
   try {
     const { rows } = await pool.query('SELECT NOW() AS now');
@@ -34,6 +38,7 @@ async function testConnection() {
   }
 }
 
+// Minimal schema bootstrap for first-run deployments
 async function initTables() {
   const queries = [
     `CREATE TABLE IF NOT EXISTS students (
@@ -48,7 +53,8 @@ async function initTables() {
       id SERIAL PRIMARY KEY,
       username TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
+      password TEXT NOT NULL,
+      admin_code TEXT UNIQUE
     )`,
     `CREATE TABLE IF NOT EXISTS events (
       id SERIAL PRIMARY KEY,
