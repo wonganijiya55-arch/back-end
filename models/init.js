@@ -1,6 +1,7 @@
-const { initTables, pool } = require('../config/database');
+const { testConnection, initTables, pool } = require('../config/database');
 
 async function init() {
+  await testConnection();
   await initTables();
 }
 

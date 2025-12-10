@@ -1,10 +1,38 @@
 const { Pool } = require('pg');
+const dotenv = require('dotenv');
 
-const connectionString = process.env.DATABASE_URL;
+dotenv.config();
+
+const isRender = !!process.env.RENDER; // Render sets RENDER=true in its environment
+let connectionString;
+if (isRender && process.env.DATABASE_URL_INTERNAL) {
+  connectionString = process.env.DATABASE_URL_INTERNAL;
+} else if (process.env.DATABASE_URL_EXTERNAL) {
+  connectionString = process.env.DATABASE_URL_EXTERNAL;
+} else {
+  connectionString = process.env.DATABASE_URL;
+}
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set. Please configure DATABASE_URL_INTERNAL or DATABASE_URL_EXTERNAL or DATABASE_URL in your environment (.env locally, Render env in production).');
+}
+
 const pool = new Pool({
   connectionString,
   ssl: { rejectUnauthorized: false },
 });
+
+async function testConnection() {
+  try {
+    const { rows } = await pool.query('SELECT NOW() AS now');
+    console.log(`Database connected. Server time: ${rows[0].now.toISOString ? rows[0].now.toISOString() : rows[0].now}`);
+  } catch (err) {
+    console.error('Failed to connect to the database via pg Pool.');
+    console.error('Error code:', err.code || 'N/A');
+    console.error('Message:', err.message);
+    throw err;
+  }
+}
 
 async function initTables() {
   const queries = [
@@ -44,9 +72,15 @@ async function initTables() {
     )`
   ];
 
-  for (const q of queries) {
-    await pool.query(q);
+  try {
+    for (const q of queries) {
+      await pool.query(q);
+    }
+    console.log('Database tables initialized successfully.');
+  } catch (err) {
+    console.error('Error initializing database tables:', err.message);
+    throw err;
   }
 }
 
-module.exports = { pool, initTables };
+module.exports = { pool, testConnection, initTables };
