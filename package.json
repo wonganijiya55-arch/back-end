@@ -6,8 +6,8 @@
   "homepage": "https://wonganijiya55-arch.github.io/ICESWEBSITE/",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node server/start.js",
+    "dev": "nodemon server/start.js",
     "db:check": "node scripts/db-check.js",
     "build": "echo \"Nothing to build for Node.js server. Use npm run start.\""
   },
