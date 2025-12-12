@@ -25,8 +25,12 @@ router.post('/register',
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('adminCode').notEmpty().withMessage('Admin code is required'),
     async (req, res) => {
+        // DEBUG: log incoming payload (temporary)
+        console.log('[ADMIN REGISTER] incoming payload:', JSON.stringify(req.body));
+
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log('[ADMIN REGISTER] validation errors:', errors.array());
             return res.status(400).json({ errors: errors.array() });
         }
 
@@ -41,19 +45,14 @@ router.post('/register',
                 const { rows } = await pool.query(query, [username, email, hashedPassword, adminCode]);
                 res.status(201).json({ message: 'Admin registration successful', adminId: rows[0].id });
             } catch (err) {
-                const msg = String(err.message).toLowerCase();
-                if (msg.includes('admins_admin_code_key') || String(err.code) === '23505') {
-                    return res.status(400).json({ message: 'Admin code already chosen. Please select another code.' });
-                }
-                if (msg.includes('admins_username_key')) {
-                    return res.status(400).json({ message: 'Username already registered' });
-                }
-                if (msg.includes('admins_email_key')) {
-                    return res.status(400).json({ message: 'Email already registered' });
-                }
-                return res.status(500).json({ message: 'Database error', error: err.message });
+                // DEBUG: log DB error details (temporary)
+                console.error('[ADMIN REGISTER] DB error:', err);
+                // Return detailed info for debugging (remove in production)
+                const dbMsg = err && err.message ? err.message : 'Unknown DB error';
+                return res.status(500).json({ message: 'Database error', error: dbMsg, code: err.code, detail: err.detail });
             }
         } catch (error) {
+            console.error('[ADMIN REGISTER] Server error:', error);
             res.status(500).json({ message: 'Server error', error: error.message });
         }
     }
@@ -169,7 +168,7 @@ router.get('/payments/:id', async (req, res) => {
         SELECT p.*, s.name as student_name, s.email as student_email 
         FROM payments p
         LEFT JOIN students s ON p.student_id = s.id
-        WHERE p.id = ?
+        WHERE p.id = $1
     `;
     try {
         const { rows } = await pool.query(query, [id]);
