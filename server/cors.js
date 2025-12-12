@@ -4,6 +4,7 @@ const allowedOrigins = [
   'http://127.0.0.1:5501',
   'http://localhost:5501',
   'https://back-end-3-agho.onrender.com',
+  'https://back-end-5-t3cv.onrender.com',
 ];
 
 const corsOptions = {
