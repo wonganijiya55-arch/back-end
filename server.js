@@ -8,34 +8,20 @@ const loginRoute = require("./routes/login");
 const passwordResetOTPRoutes = require("./routes/passwordResetOTP");
 const { init } = require('./models/init');
 
-// CORS with credentials and strict origin whitelist
-const allowedOrigins = [
-  'https://wonganijiya55-arch.github.io', // GitHub Pages origin (no path)
-  'http://127.0.0.1:5501', // local static server
-  'http://localhost:5501'
-];
-
+// CORS configuration per requested prompt
+const allowedOrigins = ['https://wonganijiya55-arch.github.io'];
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Some clients (like curl) may not send Origin; allow if missing
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    const err = new Error('CORS: Origin not allowed');
-    err.status = 403;
-    callback(err);
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // allow non-browser tools
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS policy: Origin not allowed'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
 };
-
 app.use(cors(corsOptions));
-// Ensure caches vary by Origin (good for proxies/CDNs)
-app.use((req, res, next) => { res.header('Vary', 'Origin'); next(); });
-// Respond to preflight for all routes
-// Express 5 path-to-regexp: avoid '*' wildcard; use regex instead
+// Preflight handling for all routes
 app.options(/.*/, cors(corsOptions));
 
 // middleware
@@ -51,10 +37,9 @@ app.use('/api/admins', require('./routes/admin')); // file is admin.js (singular
 app.use('/api/events', require('./routes/events'));
 app.use('/api/payments', require('./routes/payments'));
 
-// Simple health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ ok: true });
-});
+// Health routes (near top, before mounting API routes)
+app.get('/', (req, res) => res.send('Backend is running'));
+app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }));
 
 //start server
 const PORT = process.env.PORT || 5000;
