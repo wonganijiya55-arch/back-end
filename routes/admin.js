@@ -18,12 +18,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// REMOVED: Traditional password-based admin registration
-// Use POST /api/admins/register-code instead for secure code-based registration
-
-// REMOVED: Password-based admin login
-// Use POST /api/admins/login-code instead for secure code-based login
-
 /**
  * POST /api/admins/register-code - Primary admin registration endpoint
  * 

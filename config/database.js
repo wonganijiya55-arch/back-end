@@ -25,6 +25,16 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Database error code to helpful message mapping
+const DB_ERROR_MESSAGES = {
+  'ENOTFOUND': 'Database host not found. Check your DATABASE_URL setting.',
+  'ECONNREFUSED': 'Connection refused. Database server may be down or unreachable.',
+  '28P01': 'Authentication failed. Check database username and password.',
+  '3D000': 'Database does not exist. Check database name in connection string.',
+  'ETIMEDOUT': 'Connection timeout. Check network connectivity and firewall settings.',
+  'ECONNRESET': 'Connection was reset. Database server may have closed the connection.',
+};
+
 // Lightweight connectivity check run at startup
 async function testConnection() {
   try {
@@ -38,15 +48,10 @@ async function testConnection() {
     console.error('🔴 Error name:', err.name || 'N/A');
     console.error('🔴 Error message:', err.message);
     
-    // Provide helpful debugging information
-    if (err.code === 'ENOTFOUND') {
-      console.error('💡 Database host not found. Check your DATABASE_URL setting.');
-    } else if (err.code === 'ECONNREFUSED') {
-      console.error('💡 Connection refused. Database server may be down or unreachable.');
-    } else if (err.code === '28P01') {
-      console.error('💡 Authentication failed. Check database username and password.');
-    } else if (err.code === '3D000') {
-      console.error('💡 Database does not exist. Check database name in connection string.');
+    // Provide helpful debugging information based on error code
+    const helpMessage = DB_ERROR_MESSAGES[err.code];
+    if (helpMessage) {
+      console.error('💡', helpMessage);
     }
     
     console.error('🔍 Connection details (redacted):');
