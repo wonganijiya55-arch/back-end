@@ -8,9 +8,23 @@ The system has two distinct authentication flows:
 1. **Student Authentication** - Traditional email/password login
 2. **Admin Authentication** - Secure code-based login via email
 
+## ⚠️ Important: Multiple Endpoints Available
+
+There are **multiple student authentication endpoints** available for backward compatibility:
+
+### Recommended Student Endpoints (with JWT)
+- `POST /api/auth/register` - Returns JWT token for immediate authentication
+- `POST /api/login` - Returns full user info with role and redirect
+
+### Alternative Student Endpoints (without JWT)
+- `POST /api/students/register` - Returns simple confirmation
+- `POST /api/students/login` - Returns basic user info
+
+**Recommendation:** Use the `/api/auth/register` and `/api/login` endpoints as they provide JWT tokens and complete response data.
+
 ## Student Authentication
 
-### Student Registration
+### Student Registration (Recommended)
 **Endpoint:** `POST /api/auth/register`
 
 **Request Body:**
@@ -53,6 +67,43 @@ The system has two distinct authentication flows:
   "email": "john@example.com"
 }
 ```
+
+### Alternative Student Endpoints
+
+For backward compatibility, these endpoints are also available:
+
+#### Alternative Registration
+**Endpoint:** `POST /api/students/register`
+
+**Request Body:** Same as above
+
+**Response (Success):**
+```json
+{
+  "message": "Registration successful",
+  "studentId": 123
+}
+```
+
+**Note:** This endpoint does NOT return a JWT token. Use `/api/auth/register` if you need a token.
+
+#### Alternative Login
+**Endpoint:** `POST /api/students/login`
+
+**Request Body:** Same as above
+
+**Response (Success):**
+```json
+{
+  "message": "Login successful",
+  "studentId": 123,
+  "name": "John Doe",
+  "email": "john@example.com",
+  "year": "2024"
+}
+```
+
+**Note:** This endpoint does NOT include role or redirect information. Use `/api/login` for complete user info.
 
 ## Admin Authentication
 
@@ -250,12 +301,43 @@ curl -X POST http://localhost:5000/api/admins/login-code \
 
 ## Troubleshooting
 
+### Common Issue: "Still getting errors logging in and registering"
+
+If you're experiencing login/registration errors, this is likely due to **multiple endpoints with different response formats**:
+
+#### Problem
+The system has duplicate endpoints:
+- Student Registration: `/api/auth/register` (with JWT) vs `/api/students/register` (without JWT)
+- Student Login: `/api/login` (with role/redirect) vs `/api/students/login` (basic info)
+
+#### Solution
+1. **Check which endpoint your frontend is calling**
+   - If calling `/api/students/register`, switch to `/api/auth/register` for JWT token
+   - If calling `/api/students/login`, switch to `/api/login` for complete user info
+
+2. **Verify response format matches your frontend expectations**
+   - `/api/auth/register` returns: `{ token, id }`
+   - `/api/students/register` returns: `{ message, studentId }`
+   - `/api/login` returns: `{ message, role, redirect, userId, name, email }`
+   - `/api/students/login` returns: `{ message, studentId, name, email, year }`
+
+3. **Check server logs for detailed error messages**
+   - Look for `[STUDENT LOGIN]` or `[STUDENT REGISTER]` prefixes
+   - Errors will show email, error type, and details
+
+4. **Common errors and fixes:**
+   - `"Email already registered"` - User already exists, use login instead
+   - `"User not found"` - Email not registered, use registration first
+   - `"Invalid password"` - Wrong password provided
+   - `CORS error` - Frontend origin not in allowed list (see CORS Configuration above)
+
 ### Student Login Fails on Server
 
 1. **Check CORS:** Ensure frontend origin is in allowed list
 2. **Check Database:** Verify DATABASE_URL is correct for Render
 3. **Check Logs:** Look for detailed error messages in server logs
 4. **Check Environment:** Ensure all required env vars are set
+5. **Check Endpoint:** Make sure you're using `/api/login` not `/api/students/login`
 
 ### Admin Code Not Received
 

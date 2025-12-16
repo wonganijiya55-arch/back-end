@@ -55,16 +55,27 @@ Tables created if missing:
 
 ## Routes (high-level)
 
-- `POST /api/login` — Student/Admin login
-- `POST /api/students/register` — Register student
-- `POST /api/admins/register` — Register admin
+### Student Authentication
+- `POST /api/auth/register` — Register student (returns JWT token)
+- `POST /api/login` — Student login (email + password)
+- `POST /api/students/register` — Alternative student registration (no JWT)
+- `POST /api/students/login` — Alternative student login
+
+### Admin Authentication (Code-Based)
+- `POST /api/admins/register-code` — Request admin code via email
+- `POST /api/admins/login-code` — Login with code (regNumber + name + code)
+
+### Other Routes
 - `GET /api/students` — List students
-- `GET /api/events` — List events; `POST /api/events` — Create
+- `GET /api/admins` — List admins
+- `GET /api/events` — List events; `POST /api/events` — Create event
 - `POST /api/events/register` — Register for event
 - `GET /api/payments` — List payments; `GET /api/payments/summary` — Aggregate
 - `POST /api/password-reset/request-otp` — Request OTP
 - `POST /api/password-reset/verify-otp` — Verify OTP
 - `POST /api/password-reset/reset-password` — Reset password
+
+See [AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md) for detailed authentication documentation.
 
 ## Troubleshooting
 
