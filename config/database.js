@@ -54,7 +54,9 @@ async function initTables() {
       username TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      admin_code TEXT UNIQUE
+      admin_code TEXT UNIQUE,
+      reg_number TEXT UNIQUE,
+      year INTEGER
     )`,
     `CREATE TABLE IF NOT EXISTS events (
       id SERIAL PRIMARY KEY,
@@ -75,6 +77,16 @@ async function initTables() {
       student_id INTEGER REFERENCES students(id),
       event_name TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+    ,
+    `CREATE TABLE IF NOT EXISTS admin_codes (
+      id SERIAL PRIMARY KEY,
+      admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+      code_hash TEXT NOT NULL,
+      issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP NOT NULL,
+      attempts_left INTEGER NOT NULL DEFAULT 5,
+      used_at TIMESTAMP
     )`
   ];
 

@@ -3,6 +3,8 @@ const router = express.Router();
 const { pool } = require('../config/database'); // pg Pool for admin ops
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
+const crypto = require('crypto');
+const { sendEmail } = require('../utils/sendEmail');
 
 // GET /api/admins - List all admins
 // List admins
@@ -19,11 +21,11 @@ router.get('/', async (req, res) => {
 // POST /api/admins/register - Register a new admin
 // Register a new admin
 router.post('/register', 
-    // Validation middleware
+    // Validation middleware (password and adminCode no longer required)
     body('username').notEmpty().withMessage('Username is required'),
     body('email').isEmail().withMessage('Valid email is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('adminCode').notEmpty().withMessage('Admin code is required'),
+    body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('adminCode').optional(),
     async (req, res) => {
         // DEBUG: log incoming payload (temporary)
         console.log('[ADMIN REGISTER] incoming payload:', JSON.stringify(req.body));
@@ -37,12 +39,13 @@ router.post('/register',
         const { username, email, password, adminCode } = req.body;
 
         try {
-            // Hash password
-            const hashedPassword = await bcrypt.hash(password, 10);
+            // Use provided password or generate a random one to satisfy NOT NULL constraint
+            const effectivePassword = password || crypto.randomBytes(12).toString('hex');
+            const hashedPassword = await bcrypt.hash(effectivePassword, 10);
 
             try {
                 const query = `INSERT INTO admins (username, email, password, admin_code) VALUES ($1, $2, $3, $4) RETURNING id`;
-                const { rows } = await pool.query(query, [username, email, hashedPassword, adminCode]);
+                const { rows } = await pool.query(query, [username, email, hashedPassword, adminCode || null]);
                 res.status(201).json({ message: 'Admin registration successful', adminId: rows[0].id });
             } catch (err) {
                 // DEBUG: log DB error details (temporary)
@@ -83,6 +86,143 @@ router.post('/login',
             res.json({ message: 'Login successful', adminId: admin.id, username: admin.username, email: admin.email });
         } catch (error) {
             res.status(500).json({ message: 'Database error', error: error.message });
+        }
+    }
+);
+
+// POST /api/admins/register-code - Initiate code-based admin registration (email a one-time code)
+router.post(
+    '/register-code',
+    body('name').notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('regNumber').notEmpty().withMessage('Registration number is required'),
+    body('year').isInt({ min: 1 }).withMessage('Year must be a positive integer'),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const name = String(req.body.name).trim();
+        const email = String(req.body.email).trim().toLowerCase();
+        const regNumber = String(req.body.regNumber).trim().toUpperCase();
+        const year = parseInt(req.body.year, 10);
+
+        // Rate limit: max 5 codes issued in the last hour per admin
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        try {
+            // Upsert admin by reg_number or email
+            let adminId;
+            const { rows: byReg } = await pool.query('SELECT id FROM admins WHERE reg_number = $1', [regNumber]);
+            if (byReg.length > 0) {
+                adminId = byReg[0].id;
+                await pool.query('UPDATE admins SET username = $1, email = $2, year = $3 WHERE id = $4', [name, email, year, adminId]);
+            } else {
+                const { rows: byEmail } = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
+                if (byEmail.length > 0) {
+                    adminId = byEmail[0].id;
+                    await pool.query('UPDATE admins SET username = $1, reg_number = $2, year = $3 WHERE id = $4', [name, regNumber, year, adminId]);
+                } else {
+                    const randomPwd = crypto.randomBytes(12).toString('hex');
+                    const hashedPwd = await bcrypt.hash(randomPwd, 10);
+                    const insert = 'INSERT INTO admins (username, email, password, reg_number, year) VALUES ($1, $2, $3, $4, $5) RETURNING id';
+                    const { rows } = await pool.query(insert, [name, email, hashedPwd, regNumber, year]);
+                    adminId = rows[0].id;
+                }
+            }
+
+            const { rows: recent } = await pool.query(
+                'SELECT COUNT(*)::int AS count FROM admin_codes WHERE admin_id = $1 AND issued_at >= $2',
+                [adminId, oneHourAgo]
+            );
+            if (recent[0].count >= 5) {
+                return res.status(429).json({ message: 'Rate limited. Try again later.' });
+            }
+
+            // Generate short numeric/alphanumeric code (6 digits)
+            const code = String(Math.floor(100000 + Math.random() * 900000));
+            const codeHash = await bcrypt.hash(code, 10);
+            const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes TTL
+            await pool.query(
+                'INSERT INTO admin_codes (admin_id, code_hash, expires_at, attempts_left) VALUES ($1, $2, $3, $4)',
+                [adminId, codeHash, expiresAt, 5]
+            );
+
+            // Email the code; dev-only helpers to unblock testing
+            const devExpose = String(process.env.DEV_CODE_RESPONSE).toLowerCase() === 'true';
+            const devLog = String(process.env.DEV_CODE_LOG).toLowerCase() === 'true';
+            try {
+                await sendEmail(
+                    email,
+                    'Your ICES Admin Code',
+                    `Hello ${name},\n\nYour admin code is: ${code}\nIt expires in 15 minutes.\n\nRegards,\nICES Support`
+                );
+            } catch (mailErr) {
+                if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+                if (devExpose) {
+                    return res.status(201).json({ message: 'Admin code generated (email failed in dev)', devCode: code });
+                }
+                return res.status(502).json({ message: 'Failed to send code email', error: mailErr.message });
+            }
+
+            if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+            return res.status(201).json({ message: 'Admin code sent to email', ...(devExpose ? { devCode: code } : {}) });
+        } catch (err) {
+            return res.status(500).json({ message: 'Database error', error: err.message });
+        }
+    }
+);
+
+// POST /api/admins/login-code - Login using emailed admin_code
+router.post(
+    '/login-code',
+    body('regNumber').notEmpty().withMessage('Registration number is required'),
+    body('name').notEmpty().withMessage('Full name is required'),
+    body('adminCode').notEmpty().withMessage('Admin code is required'),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const regNumber = String(req.body.regNumber).trim().toUpperCase();
+        const name = String(req.body.name).trim();
+        const adminCode = String(req.body.adminCode).trim();
+        try {
+            const { rows: admins } = await pool.query('SELECT id, username, email FROM admins WHERE reg_number = $1', [regNumber]);
+            const admin = admins[0];
+            if (!admin) return res.status(404).json({ message: 'Admin not found' });
+
+            // Case-insensitive compare for name
+            const normalizedDbName = String(admin.username).trim().toLowerCase();
+            const normalizedReqName = name.toLowerCase();
+            if (normalizedDbName !== normalizedReqName) {
+                return res.status(401).json({ message: 'Invalid name' });
+            }
+
+            // Get latest active code record
+            const { rows: codes } = await pool.query(
+                'SELECT id, code_hash, expires_at, attempts_left, used_at FROM admin_codes WHERE admin_id = $1 ORDER BY issued_at DESC LIMIT 1',
+                [admin.id]
+            );
+            const codeRec = codes[0];
+            if (!codeRec) return res.status(401).json({ message: 'No code available. Request a new code.' });
+            if (codeRec.used_at) return res.status(401).json({ message: 'Code already used. Request a new code.' });
+            if (new Date(codeRec.expires_at) < new Date()) return res.status(401).json({ message: 'Code expired. Request a new code.' });
+            if (codeRec.attempts_left <= 0) return res.status(429).json({ message: 'Too many attempts. Request a new code.' });
+
+            const ok = await bcrypt.compare(adminCode, codeRec.code_hash);
+            if (!ok) {
+                await pool.query('UPDATE admin_codes SET attempts_left = attempts_left - 1 WHERE id = $1', [codeRec.id]);
+                return res.status(401).json({ message: 'Invalid code' });
+            }
+
+            // Mark used and respond
+            await pool.query('UPDATE admin_codes SET used_at = NOW() WHERE id = $1', [codeRec.id]);
+            return res.json({ role: 'admin', userId: admin.id, name: admin.username, email: admin.email, redirect: 'admin.html' });
+        } catch (err) {
+            return res.status(500).json({ message: 'Database error', error: err.message });
         }
     }
 );
