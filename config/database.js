@@ -29,11 +29,32 @@ const pool = new Pool({
 async function testConnection() {
   try {
     const { rows } = await pool.query('SELECT NOW() AS now');
-    console.log(`Database connected. Server time: ${rows[0].now.toISOString ? rows[0].now.toISOString() : rows[0].now}`);
+    console.log('✅ Database connected successfully');
+    console.log(`📅 Server time: ${rows[0].now.toISOString ? rows[0].now.toISOString() : rows[0].now}`);
+    console.log(`🔗 Connection string used: ${connectionString ? '[set]' : '[missing]'}`);
   } catch (err) {
-    console.error('Failed to connect to the database via pg Pool.');
-    console.error('Error code:', err.code || 'N/A');
-    console.error('Message:', err.message);
+    console.error('❌ Failed to connect to the database via pg Pool');
+    console.error('🔴 Error code:', err.code || 'N/A');
+    console.error('🔴 Error name:', err.name || 'N/A');
+    console.error('🔴 Error message:', err.message);
+    
+    // Provide helpful debugging information
+    if (err.code === 'ENOTFOUND') {
+      console.error('💡 Database host not found. Check your DATABASE_URL setting.');
+    } else if (err.code === 'ECONNREFUSED') {
+      console.error('💡 Connection refused. Database server may be down or unreachable.');
+    } else if (err.code === '28P01') {
+      console.error('💡 Authentication failed. Check database username and password.');
+    } else if (err.code === '3D000') {
+      console.error('💡 Database does not exist. Check database name in connection string.');
+    }
+    
+    console.error('🔍 Connection details (redacted):');
+    console.error('   - DATABASE_URL_INTERNAL:', process.env.DATABASE_URL_INTERNAL ? '[set]' : '[not set]');
+    console.error('   - DATABASE_URL_EXTERNAL:', process.env.DATABASE_URL_EXTERNAL ? '[set]' : '[not set]');
+    console.error('   - DATABASE_URL:', process.env.DATABASE_URL ? '[set]' : '[not set]');
+    console.error('   - RENDER:', process.env.RENDER ? 'true' : 'false');
+    
     throw err;
   }
 }
