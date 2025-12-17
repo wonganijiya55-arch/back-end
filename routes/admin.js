@@ -116,22 +116,50 @@ router.post(
             // Email the code; dev-only helpers to unblock testing
             const devExpose = String(process.env.DEV_CODE_RESPONSE).toLowerCase() === 'true';
             const devLog = String(process.env.DEV_CODE_LOG).toLowerCase() === 'true';
-            try {
-                await sendEmail(
+            const fastResponseEnv = process.env.FAST_EMAIL_RESPONSE;
+            const fastResponse = fastResponseEnv ? String(fastResponseEnv).toLowerCase() === 'true' : true; // default to fast response
+
+            if (fastResponse) {
+                // Fire-and-forget email to avoid client timeouts; log any errors asynchronously
+                setImmediate(() => {
+                    sendEmail(
+                        email,
+                        'Your ICES Admin Code',
+                        `Hello ${name},\n\nYour admin code is: ${code}\nIt expires in 15 minutes.\n\nRegards,\nICES Support`
+                    ).then(() => {
+                        console.log('[ADMIN register-code] Email sent (fast mode) to', email);
+                    }).catch((mailErr) => {
+                        console.error('[ADMIN register-code] Email send failed (fast mode):', mailErr?.message || mailErr);
+                    });
+                });
+                if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+                return res.status(201).json({ message: 'Admin code sent to email', ...(devExpose ? { devCode: code } : {}) });
+            } else {
+                // Await email with a bounded timeout; if it times out, still return success to avoid client aborts
+                const timeoutMs = parseInt(process.env.SENDMAIL_TIMEOUT_MS || '15000', 10);
+                const emailPromise = sendEmail(
                     email,
                     'Your ICES Admin Code',
                     `Hello ${name},\n\nYour admin code is: ${code}\nIt expires in 15 minutes.\n\nRegards,\nICES Support`
                 );
-            } catch (mailErr) {
-                if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
-                if (devExpose) {
-                    return res.status(201).json({ message: 'Admin code generated (email failed in dev)', devCode: code });
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('email-timeout')), timeoutMs));
+                try {
+                    await Promise.race([emailPromise, timeoutPromise]);
+                } catch (mailErr) {
+                    if (String(mailErr?.message) === 'email-timeout') {
+                        console.warn('[ADMIN register-code] Email send timed out after', timeoutMs, 'ms; responding to client');
+                        if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+                        return res.status(201).json({ message: 'Admin code generated; email is sending', ...(devExpose ? { devCode: code } : {}) });
+                    }
+                    if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+                    if (devExpose) {
+                        return res.status(201).json({ message: 'Admin code generated (email failed in dev)', devCode: code });
+                    }
+                    return res.status(502).json({ message: 'Failed to send code email', error: mailErr.message });
                 }
-                return res.status(502).json({ message: 'Failed to send code email', error: mailErr.message });
+                if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
+                return res.status(201).json({ message: 'Admin code sent to email', ...(devExpose ? { devCode: code } : {}) });
             }
-
-            if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
-            return res.status(201).json({ message: 'Admin code sent to email', ...(devExpose ? { devCode: code } : {}) });
         } catch (err) {
             console.error('[ADMIN register-code] DB error:', { code: err.code, message: err.message, detail: err.detail });
             return res.status(500).json({ message: 'Database error', error: err.message });
