@@ -18,79 +18,20 @@ router.get('/', async (req, res) => {
     }
 });
 
-// POST /api/admins/register - Register a new admin
-// Register a new admin
-router.post('/register', 
-    // Validation middleware (password and adminCode no longer required)
-    body('username').notEmpty().withMessage('Username is required'),
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('adminCode').optional(),
-    async (req, res) => {
-        // DEBUG: log incoming payload (temporary)
-        console.log('[ADMIN REGISTER] incoming payload:', JSON.stringify(req.body));
-
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            console.log('[ADMIN REGISTER] validation errors:', errors.array());
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { username, email, password, adminCode } = req.body;
-
-        try {
-            // Use provided password or generate a random one to satisfy NOT NULL constraint
-            const effectivePassword = password || crypto.randomBytes(12).toString('hex');
-            const hashedPassword = await bcrypt.hash(effectivePassword, 10);
-
-            try {
-                const query = `INSERT INTO admins (username, email, password, admin_code) VALUES ($1, $2, $3, $4) RETURNING id`;
-                const { rows } = await pool.query(query, [username, email, hashedPassword, adminCode || null]);
-                res.status(201).json({ message: 'Admin registration successful', adminId: rows[0].id });
-            } catch (err) {
-                // DEBUG: log DB error details (temporary)
-                console.error('[ADMIN REGISTER] DB error:', err);
-                // Return detailed info for debugging (remove in production)
-                const dbMsg = err && err.message ? err.message : 'Unknown DB error';
-                return res.status(500).json({ message: 'Database error', error: dbMsg, code: err.code, detail: err.detail });
-            }
-        } catch (error) {
-            console.error('[ADMIN REGISTER] Server error:', error);
-            res.status(500).json({ message: 'Server error', error: error.message });
-        }
-    }
-);
-
-// POST /api/admins/login - Admin login
-// Admin login
-router.post('/login',
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('password').notEmpty().withMessage('Password is required'),
-    async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { email, password } = req.body;
-        try {
-            const { rows } = await pool.query(`SELECT * FROM admins WHERE email = $1`, [email]);
-            const admin = rows[0];
-            if (!admin) {
-                return res.status(401).json({ message: 'Invalid email or password' });
-            }
-            const match = await bcrypt.compare(password, admin.password);
-            if (!match) {
-                return res.status(401).json({ message: 'Invalid email or password' });
-            }
-            res.json({ message: 'Login successful', adminId: admin.id, username: admin.username, email: admin.email });
-        } catch (error) {
-            res.status(500).json({ message: 'Database error', error: error.message });
-        }
-    }
-);
-
-// POST /api/admins/register-code - Initiate code-based admin registration (email a one-time code)
+/**
+ * POST /api/admins/register-code - Primary admin registration endpoint
+ * 
+ * This is the ONLY admin registration endpoint. It implements secure code-based registration:
+ * 1. Admin provides: name, email, regNumber, year
+ * 2. System generates a 6-digit code and emails it
+ * 3. Admin uses the code with /api/admins/login-code to authenticate
+ * 
+ * Security features:
+ * - Codes expire after 15 minutes
+ * - Rate limited to 5 codes per hour per admin
+ * - Codes are stored hashed in admin_codes table
+ * - Maximum 5 attempts per code
+ */
 router.post(
     '/register-code',
     body('name').notEmpty().withMessage('Name is required'),
@@ -174,7 +115,15 @@ router.post(
     }
 );
 
-// POST /api/admins/login-code - Login using emailed admin_code
+/**
+ * POST /api/admins/login-code - Primary admin login endpoint
+ * 
+ * This is the ONLY admin login endpoint. Authenticates using the code from registration:
+ * - Required fields: regNumber, name, adminCode
+ * - Validates code hasn't expired or been used
+ * - Checks attempt limits
+ * - Returns user info on success
+ */
 router.post(
     '/login-code',
     body('regNumber').notEmpty().withMessage('Registration number is required'),

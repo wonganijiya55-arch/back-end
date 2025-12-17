@@ -1,4 +1,11 @@
-// Strict CORS config with credentials for allowed origins
+/**
+ * CORS Configuration for Backend API
+ * 
+ * Allows requests from:
+ * - Production frontend (GitHub Pages)
+ * - Local development servers
+ * - Render backend instances
+ */
 const allowedOrigins = [
   'https://wonganijiya55-arch.github.io',
   'http://127.0.0.1:5501',
@@ -9,8 +16,23 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    const err = new Error('CORS: Origin not allowed');
+    // Allow requests with no origin (e.g., mobile apps, Postman, curl)
+    if (!origin) {
+      console.log('[CORS] Allowing request with no origin (non-browser tool)');
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      console.log('[CORS] Allowing request from:', origin);
+      return callback(null, true);
+    }
+    
+    // Log and reject disallowed origins
+    console.warn('[CORS] Blocked request from disallowed origin:', origin);
+    console.warn('[CORS] Allowed origins are:', allowedOrigins.join(', '));
+    
+    const err = new Error(`CORS policy: Origin "${origin}" is not allowed. Allowed origins: ${allowedOrigins.join(', ')}`);
     err.status = 403;
     callback(err);
   },
@@ -19,4 +41,4 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-module.exports = { corsOptions };
+module.exports = { corsOptions, allowedOrigins };

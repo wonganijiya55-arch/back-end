@@ -25,15 +25,41 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Database error code to helpful message mapping
+const DB_ERROR_MESSAGES = {
+  'ENOTFOUND': 'Database host not found. Check your DATABASE_URL setting.',
+  'ECONNREFUSED': 'Connection refused. Database server may be down or unreachable.',
+  '28P01': 'Authentication failed. Check database username and password.',
+  '3D000': 'Database does not exist. Check database name in connection string.',
+  'ETIMEDOUT': 'Connection timeout. Check network connectivity and firewall settings.',
+  'ECONNRESET': 'Connection was reset. Database server may have closed the connection.',
+};
+
 // Lightweight connectivity check run at startup
 async function testConnection() {
   try {
     const { rows } = await pool.query('SELECT NOW() AS now');
-    console.log(`Database connected. Server time: ${rows[0].now.toISOString ? rows[0].now.toISOString() : rows[0].now}`);
+    console.log('✅ Database connected successfully');
+    console.log(`📅 Server time: ${rows[0].now.toISOString ? rows[0].now.toISOString() : rows[0].now}`);
+    console.log(`🔗 Connection string used: ${connectionString ? '[set]' : '[missing]'}`);
   } catch (err) {
-    console.error('Failed to connect to the database via pg Pool.');
-    console.error('Error code:', err.code || 'N/A');
-    console.error('Message:', err.message);
+    console.error('❌ Failed to connect to the database via pg Pool');
+    console.error('🔴 Error code:', err.code || 'N/A');
+    console.error('🔴 Error name:', err.name || 'N/A');
+    console.error('🔴 Error message:', err.message);
+    
+    // Provide helpful debugging information based on error code
+    const helpMessage = DB_ERROR_MESSAGES[err.code];
+    if (helpMessage) {
+      console.error('💡', helpMessage);
+    }
+    
+    console.error('🔍 Connection details (redacted):');
+    console.error('   - DATABASE_URL_INTERNAL:', process.env.DATABASE_URL_INTERNAL ? '[set]' : '[not set]');
+    console.error('   - DATABASE_URL_EXTERNAL:', process.env.DATABASE_URL_EXTERNAL ? '[set]' : '[not set]');
+    console.error('   - DATABASE_URL:', process.env.DATABASE_URL ? '[set]' : '[not set]');
+    console.error('   - RENDER:', process.env.RENDER ? 'true' : 'false');
+    
     throw err;
   }
 }
