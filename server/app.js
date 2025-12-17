@@ -20,6 +20,16 @@ function createApp() {
   // Health endpoint
   app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
+  // CORS debug endpoint
+  app.get('/api/cors-test', (req, res) => {
+    res.json({ 
+      ok: true, 
+      message: 'CORS is working!',
+      yourOrigin: req.headers.origin || 'no origin header',
+      time: Date.now() 
+    });
+  });
+
   // Routes
   app.use('/api/login', require('../routes/login'));
   app.use('/api/password-reset', require('../routes/passwordResetOTP'));
