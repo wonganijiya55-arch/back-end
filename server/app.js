@@ -19,6 +19,9 @@ function createApp() {
 
   // Health endpoint
   app.get('/health', (req, res) => res.status(200).json({ ok: true }));
+  app.get('/', (req, res) => res.send('Backend is running'));
+  app.get('/api/health', (req, res) => res.status(200).json({ ok: true }));
+  app.get('/api/status', (req, res) => res.status(200).json({ ok: true, time: new Date().toISOString() }));
 
   // CORS debug endpoint
   app.get('/api/cors-test', (req, res) => {

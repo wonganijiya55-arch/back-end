@@ -114,6 +114,10 @@ async function initTables() {
       attempts_left INTEGER NOT NULL DEFAULT 5,
       used_at TIMESTAMP
     )`
+    ,
+    // Ensure columns exist on previously-created admins tables
+    `ALTER TABLE admins ADD COLUMN IF NOT EXISTS reg_number TEXT UNIQUE`,
+    `ALTER TABLE admins ADD COLUMN IF NOT EXISTS year INTEGER`
   ];
 
   try {

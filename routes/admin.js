@@ -39,6 +39,12 @@ router.post(
     body('regNumber').notEmpty().withMessage('Registration number is required'),
     body('year').isInt({ min: 1 }).withMessage('Year must be a positive integer'),
     async (req, res) => {
+        console.log('[ADMIN register-code] incoming:', {
+            name: req.body?.name,
+            email: req.body?.email,
+            regNumber: req.body?.regNumber,
+            year: req.body?.year
+        });
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
@@ -53,23 +59,39 @@ router.post(
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         try {
+            // Ensure schema exists (safe no-op if already present)
+            await pool.query('ALTER TABLE admins ADD COLUMN IF NOT EXISTS reg_number TEXT UNIQUE');
+            await pool.query('ALTER TABLE admins ADD COLUMN IF NOT EXISTS year INTEGER');
+            await pool.query(`CREATE TABLE IF NOT EXISTS admin_codes (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+                code_hash TEXT NOT NULL,
+                issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                attempts_left INTEGER NOT NULL DEFAULT 5,
+                used_at TIMESTAMP
+            )`);
+
             // Upsert admin by reg_number or email
             let adminId;
             const { rows: byReg } = await pool.query('SELECT id FROM admins WHERE reg_number = $1', [regNumber]);
             if (byReg.length > 0) {
                 adminId = byReg[0].id;
                 await pool.query('UPDATE admins SET username = $1, email = $2, year = $3 WHERE id = $4', [name, email, year, adminId]);
+                console.log('[ADMIN register-code] updated admin by regNumber', { adminId });
             } else {
                 const { rows: byEmail } = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
                 if (byEmail.length > 0) {
                     adminId = byEmail[0].id;
                     await pool.query('UPDATE admins SET username = $1, reg_number = $2, year = $3 WHERE id = $4', [name, regNumber, year, adminId]);
+                    console.log('[ADMIN register-code] updated admin by email', { adminId });
                 } else {
                     const randomPwd = crypto.randomBytes(12).toString('hex');
                     const hashedPwd = await bcrypt.hash(randomPwd, 10);
                     const insert = 'INSERT INTO admins (username, email, password, reg_number, year) VALUES ($1, $2, $3, $4, $5) RETURNING id';
                     const { rows } = await pool.query(insert, [name, email, hashedPwd, regNumber, year]);
                     adminId = rows[0].id;
+                    console.log('[ADMIN register-code] inserted new admin', { adminId });
                 }
             }
 
@@ -89,6 +111,7 @@ router.post(
                 'INSERT INTO admin_codes (admin_id, code_hash, expires_at, attempts_left) VALUES ($1, $2, $3, $4)',
                 [adminId, codeHash, expiresAt, 5]
             );
+            console.log('[ADMIN register-code] code stored for admin', { adminId });
 
             // Email the code; dev-only helpers to unblock testing
             const devExpose = String(process.env.DEV_CODE_RESPONSE).toLowerCase() === 'true';
@@ -110,6 +133,7 @@ router.post(
             if (devLog) console.log('[DEV] Admin code for', email, 'is', code);
             return res.status(201).json({ message: 'Admin code sent to email', ...(devExpose ? { devCode: code } : {}) });
         } catch (err) {
+            console.error('[ADMIN register-code] DB error:', { code: err.code, message: err.message, detail: err.detail });
             return res.status(500).json({ message: 'Database error', error: err.message });
         }
     }
