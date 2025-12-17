@@ -30,7 +30,7 @@ const corsOptions = {
     
     // In development/non-production, allow any localhost/127.0.0.1 origin
     if (process.env.NODE_ENV !== 'production') {
-      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:[3-9]\d{3})?$/.test(origin);
       if (isLocalhost) {
         console.log('[CORS] [DEV] Allowing localhost origin:', origin);
         return callback(null, true);

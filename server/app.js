@@ -26,7 +26,7 @@ function createApp() {
       ok: true, 
       message: 'CORS is working!',
       yourOrigin: req.headers.origin || 'no origin header',
-      time: Date.now() 
+      time: new Date().toISOString()
     });
   });
 
