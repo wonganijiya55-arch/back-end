@@ -3,13 +3,19 @@
  * 
  * Allows requests from:
  * - Production frontend (GitHub Pages)
- * - Local development servers
+ * - Local development servers (multiple ports)
  * - Render backend instances
  */
 const allowedOrigins = [
   'https://wonganijiya55-arch.github.io',
-  'http://127.0.0.1:5501',
+  'http://localhost:5000',
+  'http://localhost:5500',
   'http://localhost:5501',
+  'http://localhost:3000',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:5501',
+  'http://127.0.0.1:3000',
   'https://back-end-3-agho.onrender.com',
   'https://back-end-5-t3cv.onrender.com',
 ];
@@ -20,6 +26,15 @@ const corsOptions = {
     if (!origin) {
       console.log('[CORS] Allowing request with no origin (non-browser tool)');
       return callback(null, true);
+    }
+    
+    // In development/non-production, allow any localhost/127.0.0.1 origin
+    if (process.env.NODE_ENV !== 'production') {
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:[3-9]\d{3})?$/.test(origin);
+      if (isLocalhost) {
+        console.log('[CORS] [DEV] Allowing localhost origin:', origin);
+        return callback(null, true);
+      }
     }
     
     // Check if origin is in allowed list
