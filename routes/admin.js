@@ -4,7 +4,7 @@ const { pool } = require('../config/database'); // pg Pool for admin ops
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
-const { sendEmail } = require('../utils/sendEmail');
+const { sendEmail, createTransporterFromEnv, verifyEmailTransport } = require('../utils/sendEmail');
 
 // GET /api/admins - List all admins
 // List admins
@@ -227,6 +227,25 @@ router.post(
         }
     }
 );
+
+// GET /api/admins/email-verify - Check SMTP/Gmail transport readiness
+router.get('/email-verify', async (req, res) => {
+    const info = await verifyEmailTransport();
+    if (!info.ok) return res.status(502).json({ message: 'Email transport not ready', info });
+    return res.json({ message: 'Email transport OK', info });
+});
+
+// POST /api/admins/send-test-email - Send a test email to verify delivery
+router.post('/send-test-email', async (req, res) => {
+    const { email, subject, text } = req.body || {};
+    if (!email) return res.status(400).json({ message: 'email is required' });
+    try {
+        await sendEmail(email, subject || 'ICES Test Email', text || 'This is a test email from ICES backend.');
+        return res.json({ message: 'Test email sent' });
+    } catch (err) {
+        return res.status(502).json({ message: 'Failed to send test email', error: err.message });
+    }
+});
 
 // GET /api/admins/students - Get all registered students (admin access)
 // List all students (admin view)
