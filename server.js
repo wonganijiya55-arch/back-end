@@ -9,7 +9,7 @@ const passwordResetOTPRoutes = require("./routes/passwordResetOTP");
 const { init } = require('./models/init');
 
 // CORS configuration - Allow requests from frontend
-const allowedOrigins = ['https://wonganijiya55-arch.github.io'];
+const allowedOrigins = ['https://ices-static-site-hyyr.onrender.com'];
 const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (e.g., mobile apps, Postman, curl)
