@@ -17,8 +17,7 @@ const allowedOrigins = [
   'http://127.0.0.1:5500',
   'http://127.0.0.1:5501',
   'http://127.0.0.1:3000',
-  'https://back-end-3-agho.onrender.com',
-  'https://back-end-5-t3cv.onrender.com',
+  'https://back-end-9-qudx.onrender.com'
 ];
 
 const corsOptions = {

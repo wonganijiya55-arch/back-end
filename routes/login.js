@@ -50,7 +50,7 @@ router.post("/", async (req, res) => {
     return res.json({
       message: "Login successful",
       role: "student",
-      redirect: redirectPath,
+      redirect: "/docs/students.html",  
       userId: student.id,
       name: student.name,
       email: student.email
