@@ -221,7 +221,7 @@ router.post(
 
             // Mark used and respond
             await pool.query('UPDATE admin_codes SET used_at = NOW() WHERE id = $1', [codeRec.id]);
-            return res.json({ role: 'admin', userId: admin.id, name: admin.username, email: admin.email, redirect: 'admin.html' });
+            return res.json({ role: 'admin', userId: admin.id, name: admin.username, email: admin.email, redirect: 'docs/admin.html' });
         } catch (err) {
             return res.status(500).json({ message: 'Database error', error: err.message });
         }
