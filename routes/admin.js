@@ -221,7 +221,11 @@ router.post(
 
             // Mark used and respond
             await pool.query('UPDATE admin_codes SET used_at = NOW() WHERE id = $1', [codeRec.id]);
-            return res.json({ role: 'admin', userId: admin.id, name: admin.username, email: admin.email, redirect: 'docs/admin.html' });
+            const redirectPath = "/docs/admin.html";
+            if (process.env.DEV_CODE_LOG === 'true' || process.env.DEV_CODE_RESPONSE === 'true') {
+                console.log('[ADMIN LOGIN] Returning absolute redirect:', redirectPath);
+            }
+            return res.json({ role: 'admin', userId: admin.id, name: admin.username, email: admin.email, redirect: redirectPath });
         } catch (err) {
             return res.status(500).json({ message: 'Database error', error: err.message });
         }

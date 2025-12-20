@@ -43,10 +43,14 @@ router.post("/", async (req, res) => {
     }
     
     console.log('[STUDENT LOGIN] Success for:', email);
+    const redirectPath = "/docs/students.html";
+    if (process.env.DEV_CODE_LOG === 'true' || process.env.DEV_CODE_RESPONSE === 'true') {
+      console.log('[STUDENT LOGIN] Returning absolute redirect:', redirectPath);
+    }
     return res.json({
       message: "Login successful",
       role: "student",
-      redirect: "/dashboards/students.html",
+      redirect: redirectPath,
       userId: student.id,
       name: student.name,
       email: student.email
