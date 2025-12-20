@@ -2,42 +2,16 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
+
 const cors = require('cors');
+const { corsOptions, allowedOrigins } = require('./server/cors');
 const app = express();
 const loginRoute = require("./routes/login");
 const passwordResetOTPRoutes = require("./routes/passwordResetOTP");
 const { init } = require('./models/init');
 
-// CORS configuration - Allow requests from frontend
-const allowedOrigins = ['https://ices-static-site-hyyr.onrender.com'];
-const corsOptions = {
-  origin: function(origin, callback) {
-    // Allow requests with no origin (e.g., mobile apps, Postman, curl)
-    if (!origin) {
-      console.log('[CORS] Allowing request with no origin (non-browser tool)');
-      return callback(null, true);
-    }
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      console.log('[CORS] Allowing request from:', origin);
-      return callback(null, true);
-    }
-    
-    // Log and reject disallowed origins
-    console.warn('[CORS] Blocked request from disallowed origin:', origin);
-    console.warn('[CORS] Allowed origins are:', allowedOrigins.join(', '));
-    return callback(
-      new Error(`CORS policy: Origin "${origin}" is not allowed. Allowed origins: ${allowedOrigins.join(', ')}`)
-    );
-  },
-  credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
-};
-
+// Use shared CORS config
 app.use(cors(corsOptions));
-
 // Preflight handling for all routes
 app.options(/.*/, cors(corsOptions));
 

@@ -7,7 +7,7 @@
  * - Render backend instances
  */
 const allowedOrigins = [
-  'https://ices-static-site-hyyr.onrender.com'
+  'https://ices-static-site-hyyr.onrender.com',
   'https://wonganijiya55-arch.github.io',
   'http://localhost:5000',
   'http://localhost:5500',
