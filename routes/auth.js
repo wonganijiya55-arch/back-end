@@ -18,28 +18,38 @@ require('dotenv').config();
  */
 router.post('/register', async (req, res) => {
     const { name, email, password, year } = req.body;
-    
-    // Log registration attempt for debugging
-    console.log('[STUDENT REGISTER] Registration attempt for:', email);
-    
+    if (!name || !email || !password || !year) {
+        return res.status(400).json({
+            success: false,
+            error: 'All fields are required'
+        });
+    }
     try {
         const hashedPassword = await hashPassword(password);
-        const insert = `INSERT INTO students (name, email, password, year, registration_date) VALUES ($1, $2, $3, $4, NOW()) RETURNING id`;
+        const insert = `INSERT INTO students (name, email, password, year, registration_date) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, name, email`;
         const { rows } = await pool.query(insert, [name, email, hashedPassword, year]);
-        
-        const token = jwt.sign({ id: rows[0].id }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
-        console.log('[STUDENT REGISTER] Success for:', email);
-        
-        return res.status(201).json({ token, id: rows[0].id });
+        return res.status(201).json({
+            success: true,
+            role: 'student',
+            user: {
+                id: rows[0].id,
+                name: rows[0].name,
+                email: rows[0].email
+            }
+        });
     } catch (error) {
         console.error('[STUDENT REGISTER] Error for', email, ':', error.message);
-        
         const msg = String(error.message).toLowerCase();
         if (String(error.code) === '23505' || msg.includes('students_email_key')) {
-            return res.status(400).json({ error: 'Email already registered' });
+            return res.status(400).json({
+                success: false,
+                error: 'Email already registered'
+            });
         }
-        
-        return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+        return res.status(500).json({
+            success: false,
+            error: 'Internal Server Error'
+        });
     }
 });
 
