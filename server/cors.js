@@ -13,6 +13,9 @@ const allowedOrigins = [
   'http://localhost:5500',
   'http://localhost:5501',
   'http://localhost:3000',
+  // Note: Origin headers never include paths, but this entry
+  // helps clarify the intended allowed caller for /api/login during dev
+  'http://localhost:3000/api/login',
   'http://127.0.0.1:5000',
   'http://127.0.0.1:5500',
   'http://127.0.0.1:5501',
@@ -53,7 +56,9 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Broaden allowed headers for common frontend requests and smoother preflights
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 204,
 };
 
 module.exports = { corsOptions, allowedOrigins };
