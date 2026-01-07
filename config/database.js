@@ -80,7 +80,6 @@ async function initTables() {
       username TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      admin_code TEXT UNIQUE,
       reg_number TEXT UNIQUE,
       year INTEGER
     )`,
