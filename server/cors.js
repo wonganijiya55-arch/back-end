@@ -23,6 +23,8 @@ const allowedOrigins = [
   'https://back-end-9-qudx.onrender.com'
 ];
 
+const allowLocalAlways = String(process.env.ALLOW_LOCAL_ORIGINS).toLowerCase() === 'true';
+
 const corsOptions = {
   origin(origin, callback) {
     // Allow requests with no origin (e.g., mobile apps, Postman, curl)
@@ -31,13 +33,12 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // In development/non-production, allow any localhost/127.0.0.1 origin
-    if (process.env.NODE_ENV !== 'production') {
-      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:[3-9]\d{3})?$/.test(origin);
-      if (isLocalhost) {
-        console.log('[CORS] [DEV] Allowing localhost origin:', origin);
-        return callback(null, true);
-      }
+    // Allow localhost in dev or when ALLOW_LOCAL_ORIGINS=true
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d{2,5})?$/.test(origin);
+    const isDev = process.env.NODE_ENV !== 'production';
+    if ((isDev || allowLocalAlways) && isLocalhost) {
+      console.log(`[CORS] [${isDev ? 'DEV' : 'ENV'}] Allowing localhost origin:`, origin);
+      return callback(null, true);
     }
     
     // Check if origin is in allowed list
