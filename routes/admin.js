@@ -133,6 +133,15 @@ router.get("/students", verifyToken, verifyAdmin, async (req, res) => {
 // GET /api/admins/students/:id - Get student by ID
 router.get("/students/:id", verifyToken, verifyAdmin, async (req, res) => {
   const { id } = req.params;
+  
+  // Validate ID is a positive integer
+  if (!id || isNaN(id) || parseInt(id) <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid student ID"
+    });
+  }
+  
   try {
     const { rows } = await pool.query(
       "SELECT id, name, email, year, registration_date FROM students WHERE id = $1",
@@ -183,6 +192,15 @@ router.get("/payments", verifyToken, verifyAdmin, async (req, res) => {
 // GET /api/admins/payments/:id - Get payment by ID
 router.get("/payments/:id", verifyToken, verifyAdmin, async (req, res) => {
   const { id } = req.params;
+  
+  // Validate ID is a positive integer
+  if (!id || isNaN(id) || parseInt(id) <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid payment ID"
+    });
+  }
+  
   try {
     const { rows } = await pool.query(`
       SELECT p.id, p.student_id, p.purpose, p.amount, p.method, p.date,
@@ -241,7 +259,7 @@ router.post("/events", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       "INSERT INTO events (title, description, event_date) VALUES ($1, $2, $3) RETURNING id, title, description, event_date",
-      [title, description || "", event_date]
+      [title, description ?? "", event_date]
     );
     res.status(201).json({
       success: true,
@@ -261,6 +279,15 @@ router.post("/events", verifyToken, verifyAdmin, async (req, res) => {
 router.put("/events/:id", verifyToken, verifyAdmin, async (req, res) => {
   const { id } = req.params;
   const { title, description, event_date } = req.body;
+  
+  // Validate ID is a positive integer
+  if (!id || isNaN(id) || parseInt(id) <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid event ID"
+    });
+  }
+  
   if (!title || !event_date) {
     return res.status(400).json({
       success: false,
@@ -270,7 +297,7 @@ router.put("/events/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       "UPDATE events SET title = $1, description = $2, event_date = $3 WHERE id = $4 RETURNING id, title, description, event_date",
-      [title, description || "", event_date, id]
+      [title, description ?? "", event_date, id]
     );
     if (rows.length === 0) {
       return res.status(404).json({
@@ -295,6 +322,15 @@ router.put("/events/:id", verifyToken, verifyAdmin, async (req, res) => {
 // DELETE /api/admins/events/:id - Delete event
 router.delete("/events/:id", verifyToken, verifyAdmin, async (req, res) => {
   const { id } = req.params;
+  
+  // Validate ID is a positive integer
+  if (!id || isNaN(id) || parseInt(id) <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid event ID"
+    });
+  }
+  
   try {
     const { rowCount } = await pool.query("DELETE FROM events WHERE id = $1", [id]);
     if (rowCount === 0) {
