@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const { pool } = require("../config/database");
+const { generateToken } = require("../middleware/auth");
 
 // POST /api/login - Unified login for students and admins
 router.post("/", async (req, res) => {
@@ -24,10 +25,18 @@ router.post("/", async (req, res) => {
     if (student) {
       const match = await bcrypt.compare(password, student.password);
       if (match) {
+        // Generate JWT token for student
+        const token = generateToken({
+          id: student.id,
+          email: student.email,
+          role: "student"
+        });
+        
         return res.json({
           message: "Login successful",
           role: "student",
           redirect: "/docs/students.html",
+          token,
           userId: student.id,
           name: student.name,
           email: student.email
@@ -40,10 +49,18 @@ router.post("/", async (req, res) => {
     if (admin) {
       const match = await bcrypt.compare(password, admin.password);
       if (match) {
+        // Generate JWT token for admin
+        const token = generateToken({
+          id: admin.id,
+          email: admin.email,
+          role: "admin"
+        });
+        
         return res.json({
           message: "Login successful",
           role: "admin",
           redirect: "/docs/admin.html",
+          token,
           userId: admin.id,
           name: admin.username,
           email: admin.email

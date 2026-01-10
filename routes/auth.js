@@ -9,7 +9,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database'); // pg Pool for inserts and queries
 const { hashPassword } = require('../utils/hash');
-const jwt = require('jsonwebtoken');
+const { generateToken } = require('../middleware/auth');
 require('dotenv').config();
 
 /**
@@ -28,9 +28,18 @@ router.post('/register', async (req, res) => {
         const hashedPassword = await hashPassword(password);
         const insert = `INSERT INTO students (name, email, password, year, registration_date) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, name, email`;
         const { rows } = await pool.query(insert, [name, email, hashedPassword, year]);
+        
+        // Generate JWT token
+        const token = generateToken({
+            id: rows[0].id,
+            email: rows[0].email,
+            role: 'student'
+        });
+        
         return res.status(201).json({
             success: true,
             role: 'student',
+            token,
             user: {
                 id: rows[0].id,
                 name: rows[0].name,
