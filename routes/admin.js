@@ -7,8 +7,8 @@ const { generateToken, verifyToken, verifyAdmin } = require("../middleware/auth"
 
 // POST /api/admins/register - Admin registration
 router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
+  const { username, email, password,reg_number,year } = req.body;
+  if (!username || !email || !password || !reg_number || !year) {
     return res.status(400).json({
       success: false,
       error: "All fields required"
@@ -24,8 +24,8 @@ router.post("/register", async (req, res) => {
     }
     const hashed = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO admins (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email",
-      [name, email, hashed]
+      "INSERT INTO admins (username, email, reg_number, password, year) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email",
+      [username, email, reg_number, hashed, year]
     );
     
     // Generate JWT token
@@ -41,7 +41,7 @@ router.post("/register", async (req, res) => {
       token,
       user: {
         id: result.rows[0].id,
-        name: result.rows[0].username,
+        username: result.rows[0].username,
         email: result.rows[0].email
       }
     });
@@ -94,7 +94,7 @@ router.post("/login", async (req, res) => {
       token,
       user: {
         id: admin.id,
-        name: admin.username,
+        username: admin.username,
         email: admin.email
       }
     });
@@ -115,7 +115,7 @@ router.post("/login", async (req, res) => {
 router.get("/students", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, name, email, year, registration_date FROM students ORDER BY registration_date DESC"
+      "SELECT id, fullname, email, year,regnumber,registration_date FROM students ORDER BY registration_date DESC"
     );
     res.json({
       success: true,
