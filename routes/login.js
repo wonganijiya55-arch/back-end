@@ -19,31 +19,7 @@ router.post("/", async (req, res) => {
     });
   }
   try {
-    // Try student first
-    const studentRes = await pool.query("SELECT * FROM students WHERE email = $1", [email]);
-    const student = studentRes.rows[0];
-    if (student) {
-      const match = await bcrypt.compare(password, student.password);
-      if (match) {
-        // Generate JWT token for student
-        const token = generateToken({
-          id: student.id,
-          email: student.email,
-          role: "student"
-        });
-        
-        return res.json({
-          message: "Login successful",
-          role: "student",
-          redirect: "/docs/students.html",
-          token,
-          userId: student.id,
-          name: student.name,
-          email: student.email
-        });
-      }
-    }
-    // Try admin next
+    // Try admin first
     const adminRes = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
     const admin = adminRes.rows[0];
     if (admin) {
@@ -55,7 +31,6 @@ router.post("/", async (req, res) => {
           email: admin.email,
           role: "admin"
         });
-        
         return res.json({
           message: "Login successful",
           role: "admin",
@@ -64,6 +39,29 @@ router.post("/", async (req, res) => {
           userId: admin.id,
           name: admin.username,
           email: admin.email
+        });
+      }
+    }
+    // Try student next
+    const studentRes = await pool.query("SELECT * FROM students WHERE email = $1", [email]);
+    const student = studentRes.rows[0];
+    if (student) {
+      const match = await bcrypt.compare(password, student.password);
+      if (match) {
+        // Generate JWT token for student
+        const token = generateToken({
+          id: student.id,
+          email: student.email,
+          role: "student"
+        });
+        return res.json({
+          message: "Login successful",
+          role: "student",
+          redirect: "/docs/students.html",
+          token,
+          userId: student.id,
+          name: student.name,
+          email: student.email
         });
       }
     }
