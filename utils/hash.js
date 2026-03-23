@@ -1,5 +1,5 @@
-// Password hashing helpers (bcrypt)
-const bcrypt = require('bcrypt');
+// Password hashing helpers (bcryptjs)
+const bcrypt = require('bcryptjs');
 
 // Hash a password with fixed salt rounds
 const hashPassword = async (password) => {

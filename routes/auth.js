@@ -17,8 +17,8 @@ require('dotenv').config();
  * Creates a new student account and returns a JWT token
  */
 router.post('/register', async (req, res) => {
-    const { name, email, password, year, reg_number, role } = req.body;
-    if (!name || !email || !password || !year || !reg_number || !role) {
+    const { name, email, password, year, reg_number, role = 'student' } = req.body;
+    if (!name || !email || !password || !year || !reg_number) {
         return res.status(400).json({
             success: false,
             error: 'All fields are required'
@@ -74,11 +74,12 @@ router.post('/register', async (req, res) => {
         }
     } catch (error) {
         console.error('[REGISTER] Error for', email, ':', error.message);
-        const msg = String(error.message).toLowerCase();
-        if (String(error.code) === '23505' || msg.includes('email')) {
+        if (String(error.code) === '23505') {
+            const msg = String(error.message).toLowerCase();
+            const field = msg.includes('reg_number') ? 'Registration number' : 'Email';
             return res.status(400).json({
                 success: false,
-                error: 'Email already registered'
+                error: `${field} already registered`
             });
         }
         return res.status(500).json({
