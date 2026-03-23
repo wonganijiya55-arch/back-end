@@ -115,7 +115,7 @@ router.post("/login", async (req, res) => {
 router.get("/students", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, fullname, email, year,regnumber,registration_date FROM students ORDER BY registration_date DESC"
+      "SELECT id, name, email, year, reg_number, registration_date FROM students ORDER BY registration_date DESC"
     );
     res.json({
       success: true,

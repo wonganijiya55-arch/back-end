@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../config/database'); // pg Pool for queries
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
+const { generateToken } = require('../middleware/auth');
 
 // GET /api/students - List all students
 // List all students (basic fields)
@@ -68,8 +69,14 @@ router.post('/login',
             if (!match) {
                 return res.status(401).json({ message: 'Invalid email or password' });
             }
+            const token = generateToken({
+                id: student.id,
+                email: student.email,
+                role: 'student'
+            });
             res.json({
                 message: 'Login successful',
+                token,
                 studentId: student.id,
                 name: student.name,
                 email: student.email,

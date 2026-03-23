@@ -72,6 +72,7 @@ async function initTables() {
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
+      reg_number TEXT UNIQUE,
       year TEXT,
       registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -116,7 +117,9 @@ async function initTables() {
     ,
     // Ensure columns exist on previously-created admins tables
     `ALTER TABLE admins ADD COLUMN IF NOT EXISTS reg_number TEXT UNIQUE`,
-    `ALTER TABLE admins ADD COLUMN IF NOT EXISTS year INTEGER`
+    `ALTER TABLE admins ADD COLUMN IF NOT EXISTS year INTEGER`,
+    // Ensure reg_number exists on previously-created students tables
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS reg_number TEXT UNIQUE`
   ];
 
   try {
